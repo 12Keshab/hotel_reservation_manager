@@ -46,9 +46,13 @@ public:
     VIPRoom(int num, double p) : Room(num, p) {}
 
     void displayDetails() override {
+
         cout << "VIP Room - Room No: "
              << roomNumber
-             << " Price: $" << price << endl;
+             << " Price: $" << price
+             << " Status: "
+             << (isAvailable ? "Available" : "Booked")
+             << endl;
     }
 
     string getRoomType() override {
@@ -61,9 +65,13 @@ public:
     MediumRoom(int num, double p) : Room(num, p) {}
 
     void displayDetails() override {
+
         cout << "Medium Room - Room No: "
              << roomNumber
-             << " Price: $" << price << endl;
+             << " Price: $" << price
+             << " Status: "
+             << (isAvailable ? "Available" : "Booked")
+             << endl;
     }
 
     string getRoomType() override {
@@ -76,9 +84,13 @@ public:
     GeneralRoom(int num, double p) : Room(num, p) {}
 
     void displayDetails() override {
+
         cout << "General Room - Room No: "
              << roomNumber
-             << " Price: $" << price << endl;
+             << " Price: $" << price
+             << " Status: "
+             << (isAvailable ? "Available" : "Booked")
+             << endl;
     }
 
     string getRoomType() override {
@@ -143,15 +155,28 @@ public:
     }
 
     void displayReservation() {
-        cout << "\nReservation ID: " << reservationID << endl;
-        cout << "Guest Name: " << guest.getName() << endl;
-        cout << "Guest Email: " << guest.getEmail() << endl;
-        cout << "Room Number: " << roomNumber << endl;
-        cout << "Check In Date: " << checkInDate << endl;
-        cout << "Check Out Date: " << checkOutDate << endl;
+
+        cout << "\nReservation ID: "
+             << reservationID << endl;
+
+        cout << "Guest Name: "
+             << guest.getName() << endl;
+
+        cout << "Guest Email: "
+             << guest.getEmail() << endl;
+
+        cout << "Room Number: "
+             << roomNumber << endl;
+
+        cout << "Check In Date: "
+             << checkInDate << endl;
+
+        cout << "Check Out Date: "
+             << checkOutDate << endl;
     }
 
     string fileFormat() {
+
         return to_string(reservationID) + "," +
                guest.getName() + "," +
                guest.getEmail() + "," +
@@ -161,12 +186,19 @@ public:
     }
 };
 
-// ================= CUSTOM EXCEPTION =================
+// ================= CUSTOM EXCEPTIONS =================
 
 class RoomNotAvailableException : public exception {
 public:
     const char* what() const noexcept override {
         return "Room is not available!";
+    }
+};
+
+class InvalidInputException : public exception {
+public:
+    const char* what() const noexcept override {
+        return "Invalid input entered!";
     }
 };
 
@@ -179,7 +211,8 @@ private:
 
 public:
 
-    // Load rooms
+    // ================= LOAD ROOMS =================
+
     void loadRooms() {
 
         rooms.push_back(new GeneralRoom(101, 40));
@@ -191,7 +224,70 @@ public:
         rooms.push_back(new VIPRoom(301, 150));
     }
 
-    // Show available rooms
+    // ================= LOAD RESERVATIONS =================
+
+    void loadReservations() {
+
+        ifstream file("reservations.txt");
+
+        if (!file) {
+            return;
+        }
+
+        string line;
+
+        while (getline(file, line)) {
+
+            string data[6];
+            string temp = "";
+            int index = 0;
+
+            for (char ch : line) {
+
+                if (ch == ',') {
+                    data[index++] = temp;
+                    temp = "";
+                }
+                else {
+                    temp += ch;
+                }
+            }
+
+            data[index] = temp;
+
+            int reservationID = stoi(data[0]);
+            string name = data[1];
+            string email = data[2];
+            int roomNumber = stoi(data[3]);
+            string checkIn = data[4];
+            string checkOut = data[5];
+
+            Guest guest(name, email);
+
+            Reservation reservation(
+                reservationID,
+                guest,
+                roomNumber,
+                checkIn,
+                checkOut
+            );
+
+            reservations.push_back(reservation);
+
+            // Mark room unavailable
+            for (Room* room : rooms) {
+
+                if (room->getRoomNumber() == roomNumber) {
+                    room->setAvailability(false);
+                }
+            }
+        }
+
+        file.close();
+    }
+
+    // ================= SHOW AVAILABLE ROOMS =================
+
     void showAvailableRooms() {
 
         cout << "\n===== AVAILABLE ROOMS =====\n";
@@ -201,6 +297,7 @@ public:
         for (Room* room : rooms) {
 
             if (room->getAvailability()) {
+
                 room->displayDetails();
                 found = true;
             }
@@ -211,7 +308,8 @@ public:
         }
     }
 
-    // Book room
+    // ================= BOOK ROOM =================
+
     void bookRoom() {
 
         int roomNumber;
@@ -227,11 +325,10 @@ public:
             cin.clear();
             cin.ignore(1000, '\n');
 
-            cout << "\nInvalid room number!\n";
-            return;
+            throw InvalidInputException();
         }
 
-        cin.ignore(1000, '\n');
+        cin.ignore();
 
         cout << "Enter Guest Name: ";
         getline(cin, name);
@@ -274,6 +371,7 @@ public:
                     saveData();
 
                     cout << "\nRoom booked successfully!\n";
+
                     cout << "Reservation ID: "
                          << reservationID << endl;
 
@@ -285,11 +383,15 @@ public:
         }
 
         catch (RoomNotAvailableException& e) {
-            cout << "\n" << e.what() << endl;
+
+            cout << "\n"
+                 << e.what()
+                 << endl;
         }
     }
 
-    // Cancel reservation
+    // ================= CANCEL RESERVATION =================
+
     void cancelReservation() {
 
         int reservationID;
@@ -301,8 +403,7 @@ public:
             cin.clear();
             cin.ignore(1000, '\n');
 
-            cout << "\nInvalid reservation ID!\n";
-            return;
+            throw InvalidInputException();
         }
 
         for (int i = 0; i < reservations.size(); i++) {
@@ -321,10 +422,8 @@ public:
                     }
                 }
 
-                // Remove reservation
                 reservations.erase(reservations.begin() + i);
 
-                // Save updated data
                 saveData();
 
                 cout << "\nReservation cancelled successfully!\n";
@@ -336,35 +435,41 @@ public:
         cout << "\nReservation not found!\n";
     }
 
-    // View reservations
+    // ================= VIEW RESERVATIONS =================
+
     void viewReservations() {
 
         cout << "\n===== RESERVATIONS =====\n";
 
         if (reservations.empty()) {
+
             cout << "No reservations found!\n";
         }
         else {
 
-            for (Reservation r : reservations) {
+            for (Reservation& r : reservations) {
                 r.displayReservation();
             }
         }
     }
 
-    // Save reservation data
+    // ================= SAVE DATA =================
+
     void saveData() {
 
         ofstream file("reservations.txt");
 
-        for (Reservation r : reservations) {
-            file << r.fileFormat() << endl;
+        for (Reservation& r : reservations) {
+
+            file << r.fileFormat()
+                 << endl;
         }
 
         file.close();
     }
 
-    // Destructor
+    // ================= DESTRUCTOR =================
+
     ~HotelManager() {
 
         for (Room* room : rooms) {
@@ -381,11 +486,14 @@ int main() {
 
     hotel.loadRooms();
 
+    hotel.loadReservations();
+
     int choice;
 
     do {
 
         cout << "\n===== HOTEL RESERVATION SYSTEM =====\n";
+
         cout << "1. View Available Rooms\n";
         cout << "2. Book Room\n";
         cout << "3. Cancel Reservation\n";
@@ -404,32 +512,43 @@ int main() {
             continue;
         }
 
-        switch(choice) {
+        try {
 
-        case 1:
-            hotel.showAvailableRooms();
-            break;
+            switch(choice) {
 
-        case 2:
-            hotel.bookRoom();
-            break;
+            case 1:
+                hotel.showAvailableRooms();
+                break;
 
-        case 3:
-            hotel.cancelReservation();
-            break;
+            case 2:
+                hotel.bookRoom();
+                break;
 
-        case 4:
-            hotel.viewReservations();
-            break;
+            case 3:
+                hotel.cancelReservation();
+                break;
 
-        case 5:
-            cout << "\nExiting Program...\n";
-            break;
+            case 4:
+                hotel.viewReservations();
+                break;
 
-        default:
-            cout << "\nInvalid choice!\n";
+            case 5:
+                cout << "\nExiting Program...\n";
+                break;
+
+            default:
+                cout << "\nInvalid choice!\n";
+            }
+        }
+
+        catch (InvalidInputException& e) {
+
+            cout << "\n"
+                 << e.what()
+                 << endl;
         }
 
     } while(choice != 5);
 
+    return 0;
 }
